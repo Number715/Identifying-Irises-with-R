@@ -1,0 +1,1 @@
+In this project, we will develop a machine learning model that is capable of sorting irises based on five factors into one of three classes, *Iris Setosa*, *Iris Versicolour*, and *Iris Virginica*. We will evaluate both K nearest neighbors and decision trees classifiers. Edgar Anderson's famous iris dataset will be our source for both training and testing.
