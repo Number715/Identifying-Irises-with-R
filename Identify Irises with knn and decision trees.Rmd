@@ -1,0 +1,140 @@
+---
+title: "Identify Irises with knn and decision trees"
+author: "James Akemu"
+date: "2024-01-22"
+output: html_document
+---
+
+# Introduction
+
+In this project, we will develop a machine learning model that is capable of sorting irises based on five factors into one of three classes, *Iris Setosa*, *Iris Versicolour*, and *Iris Virginica*. We will evaluate both K nearest neighbors and decision trees classifiers. Edgar Anderson's famous iris dataset will be our source for both training and testing.
+
+Install the necessary packages.
+
+```{r cars}
+library(tidyverse)
+library(caret)
+library(smotefamily)
+library(corrplot)
+library(class)
+library(gmodels)
+```
+
+## Explore and prepare the data
+
+```{r}
+str(iris) # The Species column is a factor (as desired) and the remaining columns are numeric.
+summary(iris) # Further down, we will normalize the dataset for better modelling.
+```
+
+Check for any missing values
+
+```{r}
+sum(is.na(iris)) # No missing values
+```
+
+Since there are no missing values, we can further explore the data by checking the frequency of each species.
+
+```{r}
+table(iris$Species)# Species categories are evenly split.
+```
+
+We'll assess the distributions of each numeric column
+
+```{r pressure, echo=FALSE}
+par(mfrow = c(2, 2))
+for(i in 1:4){
+  hist(iris[, i], main = paste("Distribution of Values"), 
+       xlab = colnames(iris[i]))
+}
+```
+
+Each column's distribution is not normal and their range of values vary widely. In order to prevent these inconsistencies from affecting our model, we'll normalize the numeric columns.
+
+```{r}
+normalize <- function(x){
+  return((x - min(x)) / (max(x) - min(x)))
+}
+iris_n <- as.data.frame(lapply(iris[1:4], normalize))
+iris_n$Species <- iris$Species
+summary(iris_n)
+```
+
+# Split the datasets into training and test datasets
+
+```{r}
+set.seed(1234)
+train_n <- createDataPartition(y = iris_n$Species, times = 1, p = 0.75, list = FALSE)
+train <- iris_n[train_n, ]
+test <- iris_n[-train_n, ]
+
+# Check the proportion of observations allocated to each group
+dim(train)/dim(iris_n)
+dim(test)/dim(iris_n)
+
+# Species balance for training dataset
+prop.table(table(train$Species))
+
+# Species balance for testing dataset
+prop.table(table(test$Species))
+```
+
+# Training machine learning models
+
+```{r}
+ctrl <- trainControl(method = "cv", 
+                     number = 7, 
+                     classProbs = TRUE)
+```
+
+## K Nearest Neighbors
+
+```{r}
+knn_fit <- train(Species ~ .,
+                  data = train,
+                  trControl = ctrl,
+                  method = 'knn',
+                  metric = 'Accuracy')
+plot(knn_fit)
+knn_fit
+```
+
+The K Nearest Neighbors shows a very high accuracy and kappa statistic.
+
+## Decision trees
+
+```{r}
+dn_fit <- train(Species ~ .,
+                data = train,
+                trControl = ctrl,
+                method = 'rpart',
+                metric = 'Accuracy')
+plot(dn_fit)
+dn_fit
+```
+
+The K nearest neighbors algorithm has a greater overall accuracy and kappa statistic compared to decision trees. Therefore, we will proceed with knn classification.
+
+## Evaluating and Improving model performance
+
+```{r}
+# Constructing the Parameters
+iris_s <- iris_n[, 1:4]
+train_s <- iris_s[train_n,]
+test_s <- iris_s[-train_n, ]
+train_s_labels <- iris$Species[train_n]
+test_s_labels <- iris$Species[-train_n]
+
+iris.knn.pred <- knn(train = train_s, test = test_s, cl = train_s_labels, k = 9)
+```
+
+## Show model Performance
+
+```{r}
+CrossTable(x = test_s_labels, y = iris.knn.pred, prop.chisq = FALSE, prop.c = FALSE, 
+           prop.r = FALSE, dnn = c('actual', 'predicted'))
+```
+
+## Conclusion
+
+Overall our model was fairly efficient, it was able to correctly identify 32 out of 36 instances of iris plants based on the lengths and widths of their petals and sepals. we should be careful not to over fit our model to the test dataset as it will produce unrealistic results on real world scenarios.
